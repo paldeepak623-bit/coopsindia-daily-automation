@@ -251,11 +251,12 @@ def open_dct_status_summary(page: Page) -> None:
     log(f"Dct Summary open -> {page.url}")
 
 
-def cleanup_bad_downloads() -> None:
+def cleanup_bad_downloads(target_dir: Path | None = None) -> None:
     """UUID / extension-less junk files hatao."""
-    if not DOWNLOAD_DIR.exists():
+    root = target_dir or DOWNLOAD_DIR
+    if not root.exists():
         return
-    for f in DOWNLOAD_DIR.iterdir():
+    for f in root.iterdir():
         if not f.is_file():
             continue
         if _UUID_RE.match(f.stem) or f.suffix == "":
@@ -301,7 +302,7 @@ def download_dct_excel_report(page: Page, target_dir: Path | None = None) -> Pat
     log("Downloading DCT Status Summary -> Excel (.xlsx)...")
     out_dir = target_dir or DOWNLOAD_DIR
     out_dir.mkdir(parents=True, exist_ok=True)
-    cleanup_bad_downloads()
+    cleanup_bad_downloads(out_dir)
 
     page.wait_for_selector("text=Grand Total", timeout=45000)
     time.sleep(2)
@@ -333,7 +334,7 @@ def download_dct_excel_report(page: Page, target_dir: Path | None = None) -> Pat
 
             csv_to_excel(csv_tmp, xlsx_path)
             csv_tmp.unlink(missing_ok=True)
-            cleanup_bad_downloads()
+            cleanup_bad_downloads(out_dir)
 
             if xlsx_path.suffix.lower() != ".xlsx":
                 raise FlowError(f"File Excel format mein nahi: {xlsx_path.name}")
@@ -533,10 +534,11 @@ def logout_confirmed(page: Page | None) -> bool:
     return is_login_page(page)
 
 
-def setup_downloads(context: BrowserContext) -> None:
+def setup_downloads(context: BrowserContext, target_dir: Path | None = None) -> None:
     """Sirf accept_downloads — CDP/backup handler NAHI (UUID file bug fix)."""
-    DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    log(f"Downloads folder: {DOWNLOAD_DIR}")
+    out_dir = target_dir or DOWNLOAD_DIR
+    out_dir.mkdir(parents=True, exist_ok=True)
+    log(f"Temp download folder: {out_dir}")
 
 
 def create_context(browser, *, accept_downloads: bool = True, headless: bool = False) -> BrowserContext:
@@ -596,7 +598,7 @@ def run_flow(
 
     try:
         target_dir.mkdir(parents=True, exist_ok=True)
-        cleanup_bad_downloads()
+        cleanup_bad_downloads(target_dir)
         launch_args = ["--disable-popup-blocking"]
         if not headless:
             launch_args.insert(0, "--start-maximized")
@@ -606,7 +608,7 @@ def run_flow(
         browser = pw.chromium.launch(**launch_kwargs)
         context = create_context(browser, headless=headless)
         page = context.new_page()
-        setup_downloads(context)
+        setup_downloads(context, target_dir)
 
         do_login(page, login_id, password)
         logged_in = True

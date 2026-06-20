@@ -3,17 +3,16 @@
   "password": "YOUR_PASSWORD",
   "report": {
     "use_yesterday_date": true,
-    "local_root": "downloads"
+    "keep_local_copy": false
   },
   "upload": {
     "google_drive": {
       "enabled": true,
-      "folder_id": "1QSO9aBUym6ZdvwrkZGq7H-SCALhC34S5"
+      "folder_id": "1QSO9aBUym6ZdvwrkZGq7H-SCALhC34S5",
+      "rclone_remote": "gdrive"
     },
     "onedrive": {
-      "enabled": true,
-      "rclone_remote": "onedrive",
-      "local_sync_path": ""
+      "enabled": false
     }
   }
 }
