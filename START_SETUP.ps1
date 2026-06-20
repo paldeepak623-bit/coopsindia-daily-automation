@@ -1,31 +1,26 @@
-# Poora setup — step by step (sirf ek baar)
-
 Write-Host @"
 
-========================================
-CoopsIndia Daily Automation — Setup
-========================================
+======================================================
+CoopsIndia — FINAL SETUP (sirf ek baar, 5 minute)
+======================================================
 
-BLOCKED GOOGLE WINDOW?
-  -> Wo gcloud wala tha — BAND karo.
-  -> Neeche Step 1 follow karo (apna OAuth client).
+LAPTOP OFF par bhi roz 9 AM chalega?  -> HAAN (GitHub Cloud)
+Laptop ON roz subah?                    -> NAHI chahiye
 
-STEP 1 — Google Drive (2 min, ek baar)
-  python setup_google_oauth.py
+Sirf 2 step (ek baar):
 
-STEP 2 — OneDrive SharePoint (2 min, ek baar)
-  .\setup_onedrive_rclone.ps1
+  1) .\setup_rclone_all.ps1
+     -> Google + OneDrive login (aapka account, kisi aur se permission NAHI)
 
-STEP 3 — GitHub cloud (laptop OFF par bhi chalega)
-  .\push_github.ps1
+  2) .\push_github.ps1
+     -> GitHub secrets + cloud schedule
 
-STEP 4 — Test
-  python daily_job.py
+Agar git push fail ho to:
+  gh auth refresh -h github.com -s workflow
+  git push origin main
 
-Roz 9 AM: GitHub Actions automatic (laptop band ho tab bhi)
+======================================================
 
 "@
 
 Set-Location $PSScriptRoot
-pip install -q -r requirements.txt
-Write-Host "Dependencies OK. Ab Step 1 chalao: python setup_google_oauth.py"

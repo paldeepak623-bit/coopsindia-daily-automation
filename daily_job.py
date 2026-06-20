@@ -9,6 +9,7 @@ Daily CoopsIndia job — subah 9 baje (Task Scheduler / GitHub Actions se chale)
 from __future__ import annotations
 
 import json
+import os
 import sys
 import traceback
 from datetime import datetime
@@ -77,9 +78,15 @@ def run_daily_job(*, headless: bool = True) -> Path:
 
     upload_cfg = load_upload_config()
     if upload_cfg:
-        results = upload_report(report_path, folder_name, upload_cfg)
-        for name, dest in results.items():
-            write_log_line(f"Upload {name}: {dest}")
+        try:
+            results = upload_report(report_path, folder_name, upload_cfg)
+            for name, dest in results.items():
+                write_log_line(f"Upload {name}: {dest}")
+        except FileNotFoundError as exc:
+            write_log_line(f"Upload skip — setup pending: {exc}")
+        except Exception as exc:
+            write_log_line(f"Upload FAILED: {exc}")
+            raise
     else:
         write_log_line("Upload skip — config.json upload section empty")
 
@@ -88,7 +95,14 @@ def run_daily_job(*, headless: bool = True) -> Path:
 
 
 def main() -> int:
-    headless = "--visible" not in sys.argv
+    os.environ["COOPS_AUTO"] = "1"
+    # Windows par visible Chrome — logout UI reliable; Linux CI headless + API fallback
+    if "--headless" in sys.argv:
+        headless = True
+    elif "--visible" in sys.argv:
+        headless = False
+    else:
+        headless = sys.platform != "win32"
     try:
         run_daily_job(headless=headless)
         return 0

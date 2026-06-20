@@ -23,6 +23,7 @@ CONFIG_PATH = SCRIPT_DIR / "config.json"
 
 URL = "https://up.coopsindia.com/fhruttarpradesh/#/"
 DCT_SUMMARY_URL = "https://up.coopsindia.com/fhruttarpradesh/#/dct_summary"
+LOGOUT_API = "https://up.coopsindia.com/FhrUttarPradeshService/users/check_user_logout"
 LOGIN_ID = "dccbbr.jarb@coopsindia.com"
 PASSWORD = "Saharanpur@123"
 MAX_WAIT_SEC = 600
@@ -466,29 +467,61 @@ def do_ui_logout(page: Page) -> bool:
     return is_login_page(page)
 
 
+def try_api_logout(page: Page) -> bool:
+    """Cloud/headless fallback — sirf auto mode mein UI fail hone par."""
+    log("Logout API fallback...")
+    try:
+        result = page.evaluate(
+            """async (url) => {
+                const r = await fetch(url, { method: 'GET', credentials: 'include' });
+                return { status: r.status, body: await r.text() };
+            }""",
+            LOGOUT_API,
+        )
+        log(f"Logout API response: {result}")
+        time.sleep(2)
+        page.goto(URL, wait_until="domcontentloaded", timeout=60000)
+        page.wait_for_selector(USER_SEL, state="visible", timeout=20000)
+        return is_login_page(page)
+    except Exception as exc:
+        log(f"Logout API fail: {exc}")
+        return False
+
+
 def mandatory_logout(page: Page) -> None:
     """Logout confirm hone tak — script yahi rukegi. Chrome cut NAHI."""
     if not needs_logout(page):
         return
 
+    auto = os.environ.get("COOPS_AUTO") == "1"
+    interactive = (not auto) and sys.stdin.isatty()
+    max_tries = 12 if interactive else 20
+
     log("=" * 50)
     log("AB LOGOUT HOGA — Chrome tab cut NAHI hoga")
     log("=" * 50)
 
-    for n in range(1, 12):
-        log(f"Logout try {n}/12...")
+    for n in range(1, max_tries + 1):
+        log(f"Logout try {n}/{max_tries}...")
         if do_ui_logout(page):
             return
         time.sleep(1.5)
         page.keyboard.press("Escape")
         time.sleep(0.5)
 
-    while needs_logout(page):
-        log("Auto logout fail — khud karo: arrow -> logout")
-        input("Logout ke baad Enter dabao...")
-        if is_login_page(page):
-            return
-        do_ui_logout(page)
+    if auto and try_api_logout(page):
+        log("Logout OK via API fallback")
+        return
+
+    if interactive:
+        while needs_logout(page):
+            log("Auto logout fail — khud karo: arrow -> logout")
+            input("Logout ke baad Enter dabao...")
+            if is_login_page(page):
+                return
+            do_ui_logout(page)
+    elif needs_logout(page):
+        raise FlowError("Logout confirm nahi hua (auto mode)")
 
     if not is_login_page(page):
         raise FlowError("Logout confirm nahi hua")
@@ -506,8 +539,14 @@ def setup_downloads(context: BrowserContext) -> None:
     log(f"Downloads folder: {DOWNLOAD_DIR}")
 
 
-def create_context(browser, *, accept_downloads: bool = True) -> BrowserContext:
-    context = browser.new_context(no_viewport=True, accept_downloads=accept_downloads)
+def create_context(browser, *, accept_downloads: bool = True, headless: bool = False) -> BrowserContext:
+    if headless:
+        context = browser.new_context(
+            viewport={"width": 1920, "height": 1080},
+            accept_downloads=accept_downloads,
+        )
+    else:
+        context = browser.new_context(no_viewport=True, accept_downloads=accept_downloads)
     context.add_init_script(CAPTCHA_HOOK)
     return context
 
@@ -565,7 +604,7 @@ def run_flow(
         if os.name == "nt":
             launch_kwargs["channel"] = "chrome"
         browser = pw.chromium.launch(**launch_kwargs)
-        context = create_context(browser)
+        context = create_context(browser, headless=headless)
         page = context.new_page()
         setup_downloads(context)
 

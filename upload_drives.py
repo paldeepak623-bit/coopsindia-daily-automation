@@ -1,4 +1,4 @@
-"""Google Drive + OneDrive upload for daily CoopsIndia report."""
+"""Google Drive + OneDrive upload — rclone (cloud) + optional local sync."""
 
 from __future__ import annotations
 
@@ -9,8 +9,6 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from google_drive_upload import upload_to_google_drive
-
 SCRIPT_DIR = Path(__file__).resolve().parent
 RCLONE_CONF = SCRIPT_DIR / "rclone.conf"
 
@@ -19,11 +17,53 @@ def _log(msg: str) -> None:
     print(msg, flush=True)
 
 
-def _rclone_exe() -> Path | None:
+def _rclone_config_path() -> Path:
+    if RCLONE_CONF.exists():
+        return RCLONE_CONF
+    b64 = os.environ.get("RCLONE_CONFIG_B64", "")
+    if b64:
+        runtime = SCRIPT_DIR / ".rclone_runtime.conf"
+        runtime.write_bytes(base64.b64decode(b64))
+        return runtime
+    return RCLONE_CONF
+
+
+def _rclone_exe() -> str:
+    env_bin = os.environ.get("RCLONE_BIN")
+    if env_bin:
+        return env_bin
     bundled = SCRIPT_DIR / "tools" / "rclone-v1.74.3-windows-amd64" / "rclone.exe"
     if bundled.exists():
-        return bundled
-    return None
+        return str(bundled)
+    return "rclone"
+
+
+def upload_via_rclone(
+    file_path: Path,
+    *,
+    remote: str,
+    dated_subfolder: str,
+) -> str:
+    conf = _rclone_config_path()
+    if not conf.exists():
+        raise FileNotFoundError(
+            "rclone.conf missing — ek baar chalao: .\\setup_rclone_all.ps1"
+        )
+
+    dest = f"{remote}:{dated_subfolder}/{file_path.name}"
+    cmd = [
+        _rclone_exe(),
+        "copyto",
+        str(file_path),
+        dest,
+        "--config",
+        str(conf),
+    ]
+    _log(f"rclone upload -> {dest}")
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if proc.returncode != 0:
+        raise RuntimeError(proc.stderr or proc.stdout or "rclone upload failed")
+    return dest
 
 
 def upload_to_onedrive_local(
@@ -40,31 +80,6 @@ def upload_to_onedrive_local(
     return dest
 
 
-def upload_to_onedrive_rclone(
-    file_path: Path,
-    *,
-    remote: str,
-    dated_subfolder: str,
-    config_path: Path | None = None,
-) -> str:
-    conf = config_path or RCLONE_CONF
-    if not conf.exists() and os.environ.get("RCLONE_CONFIG_B64"):
-        conf = SCRIPT_DIR / ".rclone_runtime.conf"
-        conf.write_bytes(base64.b64decode(os.environ["RCLONE_CONFIG_B64"]))
-
-    rclone = os.environ.get("RCLONE_BIN", "rclone")
-    if os.name == "nt":
-        local = _rclone_exe()
-        if local:
-            rclone = str(local)
-
-    dest = f"{remote}:{dated_subfolder}/{file_path.name}"
-    cmd = [rclone, "copyto", str(file_path), dest, "--config", str(conf), "-v"]
-    _log(f"OneDrive rclone -> {dest}")
-    subprocess.run(cmd, check=True, capture_output=True, text=True)
-    return dest
-
-
 def upload_report(
     file_path: Path,
     dated_subfolder: str,
@@ -74,19 +89,15 @@ def upload_report(
 
     gcfg = upload_cfg.get("google_drive") or {}
     if gcfg.get("enabled"):
-        folder_id = gcfg.get("folder_id", "")
-        if not folder_id:
-            raise ValueError("google_drive.folder_id config mein set karein")
-        results["google_drive"] = upload_to_google_drive(
-            file_path,
-            root_folder_id=folder_id,
-            dated_subfolder=dated_subfolder,
+        remote = gcfg.get("rclone_remote", "gdrive")
+        results["google_drive"] = upload_via_rclone(
+            file_path, remote=remote, dated_subfolder=dated_subfolder
         )
 
     ocfg = upload_cfg.get("onedrive") or {}
     if ocfg.get("enabled"):
         if ocfg.get("rclone_remote"):
-            results["onedrive"] = upload_to_onedrive_rclone(
+            results["onedrive"] = upload_via_rclone(
                 file_path,
                 remote=ocfg["rclone_remote"],
                 dated_subfolder=dated_subfolder,
@@ -101,7 +112,7 @@ def upload_report(
                 )
             )
         else:
-            raise ValueError("onedrive: local_sync_path ya rclone_remote set karein")
+            raise ValueError("onedrive: rclone_remote ya local_sync_path set karein")
 
     return results
 
