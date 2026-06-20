@@ -1,0 +1,74 @@
+name: CoopsIndia Daily Report
+
+on:
+  schedule:
+    # 9:00 AM IST = 3:30 AM UTC
+    - cron: "30 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  daily-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install rclone
+        run: |
+          curl -fsSL https://rclone.org/install.sh | sudo bash
+
+      - name: Install Python deps + Playwright
+        run: |
+          pip install -r requirements.txt
+          playwright install chromium --with-deps
+
+      - name: Write secrets to files
+        env:
+          COOPS_LOGIN_ID: ${{ secrets.COOPS_LOGIN_ID }}
+          COOPS_PASSWORD: ${{ secrets.COOPS_PASSWORD }}
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+          GOOGLE_OAUTH_REFRESH_TOKEN: ${{ secrets.GOOGLE_OAUTH_REFRESH_TOKEN }}
+          RCLONE_CONFIG_B64: ${{ secrets.RCLONE_CONFIG_B64 }}
+        run: |
+          mkdir -p credentials
+          cat > config.json <<EOF
+          {
+            "login_id": "$COOPS_LOGIN_ID",
+            "password": "$COOPS_PASSWORD",
+            "report": {
+              "use_yesterday_date": true,
+              "local_root": "downloads"
+            },
+            "upload": {
+              "google_drive": {
+                "enabled": true,
+                "folder_id": "1QSO9aBUym6ZdvwrkZGq7H-SCALhC34S5"
+              },
+              "onedrive": {
+                "enabled": true,
+                "rclone_remote": "onedrive"
+              }
+            }
+          }
+          EOF
+          echo "$RCLONE_CONFIG_B64" | base64 -d > rclone.conf
+
+      - name: Run daily job
+        env:
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+          GOOGLE_OAUTH_REFRESH_TOKEN: ${{ secrets.GOOGLE_OAUTH_REFRESH_TOKEN }}
+        run: python daily_job.py
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coops-logs
+          path: logs/

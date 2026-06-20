@@ -1,0 +1,12 @@
+config.json
+credentials/google_service_account.json
+credentials/google_oauth_token.json
+credentials/oauth_client.json
+rclone.conf
+.rclone_runtime.conf
+logs/
+downloads/
+tools/
+__pycache__/
+*.pyc
+.env

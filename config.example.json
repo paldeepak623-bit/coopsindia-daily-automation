@@ -1,0 +1,19 @@
+{
+  "login_id": "YOUR_LOGIN",
+  "password": "YOUR_PASSWORD",
+  "report": {
+    "use_yesterday_date": true,
+    "local_root": "downloads"
+  },
+  "upload": {
+    "google_drive": {
+      "enabled": true,
+      "folder_id": "1QSO9aBUym6ZdvwrkZGq7H-SCALhC34S5"
+    },
+    "onedrive": {
+      "enabled": true,
+      "rclone_remote": "onedrive",
+      "local_sync_path": ""
+    }
+  }
+}
