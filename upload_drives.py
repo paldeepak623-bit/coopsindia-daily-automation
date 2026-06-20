@@ -96,7 +96,11 @@ def upload_report(
 
     ocfg = upload_cfg.get("onedrive") or {}
     if ocfg.get("enabled"):
-        if ocfg.get("rclone_remote"):
+        if ocfg.get("use_graph", True):
+            from onedrive_graph_upload import upload_to_onedrive_graph
+
+            results["onedrive"] = upload_to_onedrive_graph(file_path, dated_subfolder)
+        elif ocfg.get("rclone_remote"):
             results["onedrive"] = upload_via_rclone(
                 file_path,
                 remote=ocfg["rclone_remote"],

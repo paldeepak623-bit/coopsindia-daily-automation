@@ -49,6 +49,7 @@ jobs:
               },
               "onedrive": {
                 "enabled": true,
+                "use_graph": true,
                 "rclone_remote": "onedrive"
               }
             }
