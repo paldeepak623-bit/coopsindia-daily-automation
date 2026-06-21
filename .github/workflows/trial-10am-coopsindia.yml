@@ -1,61 +1,88 @@
 name: CoopsIndia Trial 10AM
 
+
+
 on:
+
   schedule:
+
     - cron: "30 4 * * *"
+
   workflow_dispatch:
 
+
+
 jobs:
+
   trial-report:
+
     runs-on: ubuntu-latest
+
     timeout-minutes: 35
+
     steps:
-      - name: Skip after trial day
-        id: gate
-        run: |
-          TODAY=$(TZ=Asia/Kolkata date +%d-%m-%Y)
-          if [ "${{ github.event_name }}" = "schedule" ] && [ "$TODAY" != "21-06-2026" ]; then
-            echo "run=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          fi
+
       - uses: actions/checkout@v4
-        if: steps.gate.outputs.run == 'true'
+
       - uses: actions/setup-python@v5
-        if: steps.gate.outputs.run == 'true'
+
         with:
+
           python-version: "3.11"
+
       - name: Install rclone
-        if: steps.gate.outputs.run == 'true'
+
         run: curl -fsSL https://rclone.org/install.sh | sudo bash
+
       - name: Install deps
-        if: steps.gate.outputs.run == 'true'
+
         run: |
+
           pip install -r requirements.txt
+
           playwright install chromium --with-deps
+
       - name: Write config
-        if: steps.gate.outputs.run == 'true'
+
         env:
+
           COOPS_LOGIN_ID: ${{ secrets.COOPS_LOGIN_ID }}
-          COOSÏH_PASSWORD=${{ secrets.COOPS_PASSWORD }}
+
+          COOPS_PASSWORD: ${{ secrets.COOPS_PASSWORD }}
+
           RCLONE_CONFIG_B64: ${{ secrets.RCLONE_CONFIG_B64 }}
+
         run: |
+
           mkdir -p credentials logs
-          cat > config.json <<EOF
-          {"login_id":"$COOSÏH_LOGIN_ID","password":"$COOSÏH_PASSWORD","report":{"use_yesterday_date":false,"keep_local_copy":false},"upload":{"google_drive":{"enabled":true,"folder_id":"1QSO9aBIYm6Zdvwrk:Gq7H-SCALhC34S5","rclone_remote":"gdrive"},"onedrive":{"enabled":false}}}
-          EOF
+
+          python3 -c "import json,os; json.dump({'login_id':os.environ['COOPS_LOGIN_ID'],'password':os.environ['COOPS_PASSWORD'],'report':{'use_yesterday_date':False,'keep_local_copy':False},'upload':{'google_drive':{'enabled':True,'folder_id':'1QSO9aBUym6ZdvwrkZGq7H-SCALhC34S5','rclone_remote':'gdrive'},'onedrive':{'enabled':False}}}, open('config.json','w'))"
+
           echo "$RCLONE_CONFIG_B64" | base64 -d > rclone.conf
+
       - name: Run trial job
-        if: steps.gate.outputs.run === 'true'
+
         env:
+
           COOPS_AUTO: "1"
+
         run: |
+
           export COOPS_DRIVE_FOLDER="TRIAL-$(TZ=Asia/Kolkata date +%d-%m-%Y)"
-          sed -i 's/folder_name = report_folder_name(use_yesterday=use_yesterday)/folder_name = __import__("os").environ.get("COOSÏH_DRIVE_FOLDER") or report_folder_name(use_yesterday=use_yesterday)/' daily_job.py
+
+          sed -i 's/folder_name = report_folder_name(use_yesterday=use_yesterday)/folder_name = __import__("os").environ.get("COOPS_DRIVE_FOLDER") or report_folder_name(use_yesterday=use_yesterday)/' daily_job.py
+
           python daily_job.py
+
       - name: Upload logs
-        if: always() && steps.gate.outputs.run === 'true'
+
+        if: always()
+
         uses: actions/upload-artifact@v4
+
         with:
+
           name: coops-trial-logs
+
           path: logs/
+
