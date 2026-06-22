@@ -1,0 +1,54 @@
+name: CoopsIndia 9AM Schedule
+
+
+
+on:
+
+  schedule:
+
+    - cron: "30 3 * * *"
+
+    - cron: "0 4 * * *"
+
+  workflow_dispatch:
+
+
+
+permissions:
+
+  actions: write
+
+  contents: read
+
+
+
+jobs:
+
+  trigger-daily:
+
+    runs-on: ubuntu-latest
+
+    timeout-minutes: 5
+
+    steps:
+
+      - uses: actions/github-script@v7
+
+        with:
+
+          script: |
+
+            await github.rest.actions.createWorkflowDispatch({
+
+              owner: context.repo.owner,
+
+              repo: context.repo.repo,
+
+              workflow_id: 'coopsindia-daily-9am.yml',
+
+              ref: 'main',
+
+            });
+
+            core.info('Triggered coopsindia-daily-9am.yml at ' + new Date().toISOString());
+
