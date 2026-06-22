@@ -2,7 +2,6 @@ name: CoopsIndia Daily 9AM
 
 on:
   schedule:
-    - cron: "35 7 * * *"
     - cron: "30 3 * * *"
     - cron: "0 4 * * *"
   workflow_dispatch:
