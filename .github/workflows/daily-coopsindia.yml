@@ -1,4 +1,4 @@
-name: CoopsIndia Daily Report
+name: CoopsIndia Daily 9AM
 
 
 
@@ -6,11 +6,21 @@ on:
 
   schedule:
 
-    - cron: "30 3 * * *"
+    - cron: "0 9 * * *"
 
-    - cron: "0 4 * * *"
+      timezone: Asia/Kolkata
+
+    - cron: "30 9 * * *"
+
+      timezone: Asia/Kolkata
 
   workflow_dispatch:
+
+
+
+permissions:
+
+  contents: read
 
 
 
@@ -78,7 +88,7 @@ jobs:
 
         with:
 
-          name: coops-logs
+          name: coops-logs-${{ github.run_number }}
 
           path: logs/
 
