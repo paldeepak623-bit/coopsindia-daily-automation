@@ -1,5 +1,5 @@
 """
-CoopsIndia UP — Login + DCT Report Excel download + Logout.
+CoopsIndia UP â€” Login + DCT Report Excel download + Logout.
 Chrome visual mode. Run: run_coops_login.bat
 """
 
@@ -24,11 +24,11 @@ CONFIG_PATH = SCRIPT_DIR / "config.json"
 URL = "https://up.coopsindia.com/fhruttarpradesh/#/"
 DCT_SUMMARY_URL = "https://up.coopsindia.com/fhruttarpradesh/#/dct_summary"
 LOGOUT_API = "https://up.coopsindia.com/FhrUttarPradeshService/users/check_user_logout"
-LOGIN_ID = "dccbbr.jarb@coopsindia.com"
-PASSWORD = "Saharanpur@123"
+LOGIN_ID = "apexup@coopsindia.com"
+PASSWORD = "Admin@12345"
 MAX_WAIT_SEC = 600
 RETRY_GAP_SEC = 1.0
-SESSION_BUSY_WAIT_SEC = 180  # 2-3 min — server session expire hone do
+SESSION_BUSY_WAIT_SEC = 180  # 2-3 min â€” server session expire hone do
 SESSION_BUSY_MAX_CYCLES = 5
 
 USER_SEL = "#txt_login_user_name"
@@ -213,22 +213,22 @@ def do_login(page: Page, login_id: str, password: str) -> int:
         need_refresh = "captcha" in msg_l
 
         if need_refresh:
-            log(f"Wrong captcha — refresh in {RETRY_GAP_SEC}s")
+            log(f"Wrong captcha â€” refresh in {RETRY_GAP_SEC}s")
         elif "already active" in msg_l:
             busy_cycles += 1
             if busy_cycles >= SESSION_BUSY_MAX_CYCLES:
                 raise LoginError(
-                    "Session ab bhi busy hai — manually logout karein ya aur wait karein."
+                    "Session ab bhi busy hai â€” manually logout karein ya aur wait karein."
                 )
             wait_min = SESSION_BUSY_WAIT_SEC // 60
             log(
-                f"Session busy — turant retry NAHI. "
+                f"Session busy â€” turant retry NAHI. "
                 f"{wait_min} minute wait ({busy_cycles}/{SESSION_BUSY_MAX_CYCLES})..."
             )
             for remaining in range(SESSION_BUSY_WAIT_SEC, 0, -30):
                 log(f"  ... {remaining // 60}m {remaining % 60}s baaki")
                 time.sleep(min(30, remaining))
-            log("Wait khatam — page reload, naya captcha, dubara login...")
+            log("Wait khatam â€” page reload, naya captcha, dubara login...")
             page.goto(URL, wait_until="domcontentloaded", timeout=60000)
             page.wait_for_selector(USER_SEL, state="visible", timeout=30000)
             fill_credentials_once(page, login_id, password)
@@ -237,7 +237,7 @@ def do_login(page: Page, login_id: str, password: str) -> int:
             continue
         else:
             need_refresh = True
-            log(f"Fail: {msg} — refresh in {RETRY_GAP_SEC}s")
+            log(f"Fail: {msg} â€” refresh in {RETRY_GAP_SEC}s")
         time.sleep(RETRY_GAP_SEC)
 
     raise LoginError(f"Login failed after {MAX_WAIT_SEC}s ({attempt} tries)")
@@ -453,7 +453,7 @@ def click_logout_option(page: Page) -> bool:
 def do_ui_logout(page: Page) -> bool:
     log("Logout: envelope arrow -> logout...")
     if not click_envelope_arrow(page):
-        log("Arrow click fail — retry...")
+        log("Arrow click fail â€” retry...")
         return False
     if not click_logout_option(page):
         log("logout option nahi mila...")
@@ -463,13 +463,13 @@ def do_ui_logout(page: Page) -> bool:
     except Exception:
         time.sleep(2)
     if is_login_page(page):
-        log("Logout OK — login page")
+        log("Logout OK â€” login page")
         return True
     return is_login_page(page)
 
 
 def try_api_logout(page: Page) -> bool:
-    """Cloud/headless fallback — sirf auto mode mein UI fail hone par."""
+    """Cloud/headless fallback â€” sirf auto mode mein UI fail hone par."""
     log("Logout API fallback...")
     try:
         result = page.evaluate(
@@ -490,7 +490,7 @@ def try_api_logout(page: Page) -> bool:
 
 
 def mandatory_logout(page: Page) -> None:
-    """Logout confirm hone tak — script yahi rukegi. Chrome cut NAHI."""
+    """Logout confirm hone tak â€” script yahi rukegi. Chrome cut NAHI."""
     if not needs_logout(page):
         return
 
@@ -499,7 +499,7 @@ def mandatory_logout(page: Page) -> None:
     max_tries = 12 if interactive else 20
 
     log("=" * 50)
-    log("AB LOGOUT HOGA — Chrome tab cut NAHI hoga")
+    log("AB LOGOUT HOGA â€” Chrome tab cut NAHI hoga")
     log("=" * 50)
 
     for n in range(1, max_tries + 1):
@@ -516,7 +516,7 @@ def mandatory_logout(page: Page) -> None:
 
     if interactive:
         while needs_logout(page):
-            log("Auto logout fail — khud karo: arrow -> logout")
+            log("Auto logout fail â€” khud karo: arrow -> logout")
             input("Logout ke baad Enter dabao...")
             if is_login_page(page):
                 return
@@ -535,7 +535,7 @@ def logout_confirmed(page: Page | None) -> bool:
 
 
 def setup_downloads(context: BrowserContext, target_dir: Path | None = None) -> None:
-    """Sirf accept_downloads — CDP/backup handler NAHI (UUID file bug fix)."""
+    """Sirf accept_downloads â€” CDP/backup handler NAHI (UUID file bug fix)."""
     out_dir = target_dir or DOWNLOAD_DIR
     out_dir.mkdir(parents=True, exist_ok=True)
     log(f"Temp download folder: {out_dir}")
@@ -562,9 +562,9 @@ def finish_and_close(page: Page | None, browser, logged_in: bool) -> None:
         mandatory_logout(page)
 
     if logged_in and not logout_confirmed(page):
-        raise FlowError("Logout confirm nahi hua — browser band nahi kiya")
+        raise FlowError("Logout confirm nahi hua â€” browser band nahi kiya")
 
-    log("Logout OK — browser band ho raha hai")
+    log("Logout OK â€” browser band ho raha hai")
     try:
         browser.close()
     except Exception:
@@ -619,7 +619,7 @@ def run_flow(
             report_path = download_dct_excel_report(page, target_dir)
             log(f"Excel (.xlsx) ready: {report_path}")
 
-        log("Download done — AB LOGOUT hoga (arrow -> logout)...")
+        log("Download done â€” AB LOGOUT hoga (arrow -> logout)...")
         mandatory_logout(page)
 
         log(f"Complete in {time.time() - started:.1f}s")
