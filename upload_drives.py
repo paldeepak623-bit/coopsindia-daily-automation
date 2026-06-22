@@ -1,4 +1,4 @@
-"""Google Drive upload — rclone (cloud) + optional local sync."""
+"""Google Drive upload â€” rclone (cloud) + optional local sync."""
 
 from __future__ import annotations
 
@@ -47,10 +47,10 @@ def upload_via_rclone(
     conf = _rclone_config_path()
     if not conf.exists():
         raise FileNotFoundError(
-            "rclone.conf missing — ek baar chalao: .\\setup_rclone_all.ps1"
+            "rclone.conf missing â€” ek baar chalao: .\\setup_rclone_all.ps1"
         )
 
-    dest = f"{remote}:{dated_subfolder}/{file_path.name}"
+    dest = f"{remote}:{dated_subfolder}/DCT_Status_Summary.xlsx"
     mkdir_cmd = [
         _rclone_exe(),
         "mkdir",
@@ -59,6 +59,16 @@ def upload_via_rclone(
         str(conf),
     ]
     subprocess.run(mkdir_cmd, capture_output=True, text=True)
+    purge_cmd = [
+        _rclone_exe(),
+        "delete",
+        f"{remote}:{dated_subfolder}",
+        "--include",
+        "*.xlsx",
+        "--config",
+        str(conf),
+    ]
+    subprocess.run(purge_cmd, capture_output=True, text=True)
     cmd = [
         _rclone_exe(),
         "copyto",
