@@ -1,0 +1,84 @@
+name: CoopsIndia Daily 9AM Job
+
+
+
+on:
+
+  workflow_dispatch:
+
+
+
+permissions:
+
+  contents: read
+
+
+
+jobs:
+
+  daily-report:
+
+    runs-on: ubuntu-latest
+
+    timeout-minutes: 35
+
+    steps:
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+
+        with:
+
+          python-version: "3.11"
+
+      - name: Install rclone
+
+        run: curl -fsSL https://rclone.org/install.sh | sudo bash
+
+      - name: Install deps
+
+        run: |
+
+          pip install -r requirements.txt
+
+          playwright install chromium --with-deps
+
+      - name: Write config
+
+        env:
+
+          COOPS_LOGIN_ID: ${{ secrets.COOPS_LOGIN_ID }}
+
+          COOPS_PASSWORD: ${{ secrets.COOPS_PASSWORD }}
+
+          RCLONE_CONFIG_B64: ${{ secrets.RCLONE_CONFIG_B64 }}
+
+        run: |
+
+          mkdir -p credentials logs
+
+          python3 -c "import json,os; json.dump({'login_id':os.environ['COOPS_LOGIN_ID'],'password':os.environ['COOPS_PASSWORD'],'report':{'use_yesterday_date':True,'keep_local_copy':False},'upload':{'google_drive':{'enabled':True,'folder_id':'1QSO9aBUym6ZdvwrkZGq7H-SCALhC34S5','rclone_remote':'gdrive'},'onedrive':{'enabled':False}}}, open('config.json','w'))"
+
+          echo "$RCLONE_CONFIG_B64" | base64 -d > rclone.conf
+
+      - name: Run daily job
+
+        env:
+
+          COOPS_AUTO: "1"
+
+        run: python daily_job.py
+
+      - name: Upload logs
+
+        if: always()
+
+        uses: actions/upload-artifact@v4
+
+        with:
+
+          name: coops-logs-${{ github.run_number }}
+
+          path: logs/
+
