@@ -5,6 +5,8 @@ on:
     - cron: "30 3 * * *"
     - cron: "0 4 * * *"
   workflow_dispatch:
+  repository_dispatch:
+    types: [coops-daily-run]
 
 permissions:
   contents: read
