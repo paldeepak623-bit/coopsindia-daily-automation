@@ -1,10 +1,9 @@
-name: CoopsIndia 9AM Backup Trigger
+name: CoopsIndia 7AM Backup Trigger
 
 on:
   schedule:
-    - cron: "40 7 * * *"
-    - cron: "35 3 * * *"
-    - cron: "5 4 * * *"
+    - cron: "35 1 * * *"
+    - cron: "5 2 * * *"
   workflow_dispatch:
 
 permissions:
