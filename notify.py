@@ -1,19 +1,20 @@
-"""Send WhatsApp (CallMeBot) and/or SMS (Twilio) to one or more numbers."""
+"""WhatsApp (CallMeBot), SMS (Twilio), and email alerts after daily job."""
 from __future__ import annotations
 
 import base64
 import os
+import smtplib
 import sys
 import urllib.parse
 import urllib.request
+from email.mime.text import MIMEText
 
 
 def _log(msg: str) -> None:
     print(msg, flush=True)
 
 
-def _pairs() -> list[tuple[str, str]]:
-    """Phone + CallMeBot API key pairs from NOTIFY_TARGETS or NOTIFY_PHONES + CALLMEBOT_APIKEYS."""
+def _phones() -> list[tuple[str, str]]:
     targets = os.environ.get("NOTIFY_TARGETS", "").strip()
     if targets:
         out: list[tuple[str, str]] = []
@@ -37,7 +38,11 @@ def _pairs() -> list[tuple[str, str]]:
     return out
 
 
-def send_whatsapp(phone: str, apikey: str, text: str) -> bool:
+def _emails() -> list[str]:
+    return [e.strip() for e in os.environ.get("NOTIFY_EMAILS", "").split(",") if e.strip()]
+
+
+def send_whatsapp(phone: str, apikey: str, text: str) -> None:
     url = (
         "https://api.callmebot.com/whatsapp.php?"
         + urllib.parse.urlencode({"phone": phone, "text": text, "apikey": apikey})
@@ -45,7 +50,6 @@ def send_whatsapp(phone: str, apikey: str, text: str) -> bool:
     with urllib.request.urlopen(urllib.request.Request(url), timeout=30) as r:
         body = r.read().decode(errors="replace")
     _log(f"WhatsApp {phone}: {body[:160]}")
-    return True
 
 
 def send_sms_twilio(to: str, body: str) -> bool:
@@ -64,22 +68,39 @@ def send_sms_twilio(to: str, body: str) -> bool:
     return True
 
 
+def send_email(subject: str, body: str, recipients: list[str]) -> None:
+    user = os.environ.get("SMTP_USER", "").strip()
+    password = os.environ.get("SMTP_PASSWORD", "").strip()
+    if not user or not password:
+        _log("Email skipped — set SMTP_USER and SMTP_PASSWORD in GitHub secrets")
+        return
+    host = os.environ.get("SMTP_HOST", "smtp.gmail.com").strip()
+    port = int(os.environ.get("SMTP_PORT", "587"))
+    sender = os.environ.get("SMTP_FROM", user).strip()
+    msg = MIMEText(body)
+    msg["Subject"] = subject
+    msg["From"] = sender
+    msg["To"] = ", ".join(recipients)
+    with smtplib.SMTP(host, port, timeout=30) as smtp:
+        smtp.starttls()
+        smtp.login(user, password)
+        smtp.sendmail(sender, recipients, msg.as_string())
+    _log(f"Email sent to: {', '.join(recipients)}")
+
+
 def main() -> int:
     status = (sys.argv[1] if len(sys.argv) > 1 else "success").lower()
     folder = os.environ.get("REPORT_FOLDER", "")
     when = os.environ.get("JOB_TIME_IST", "")
     if status == "success":
         text = f"CoopsIndia 7AM OK — DCT report uploaded. Drive folder: {folder}. {when}"
+        subject = f"CoopsIndia 7AM OK — {folder}"
     else:
         text = f"CoopsIndia 7AM FAILED — check GitHub Actions. {when}"
-
-    pairs = _pairs()
-    if not pairs:
-        _log("No NOTIFY_PHONES configured")
-        return 0
+        subject = "CoopsIndia 7AM FAILED"
 
     sent = 0
-    for phone, wa_key in pairs:
+    for phone, wa_key in _phones():
         if wa_key:
             try:
                 send_whatsapp(phone, wa_key, text)
@@ -92,8 +113,16 @@ def main() -> int:
         except Exception as e:
             _log(f"SMS error {phone}: {e}")
 
-    if not sent:
-        _log("No message sent — add CallMeBot API keys (one per phone) in GitHub secrets")
+    emails = _emails()
+    if emails:
+        try:
+            send_email(subject, text, emails)
+            sent += 1
+        except Exception as e:
+            _log(f"Email error: {e}")
+
+    if not sent and not emails:
+        _log("No notification targets configured")
     return 0
 
 
