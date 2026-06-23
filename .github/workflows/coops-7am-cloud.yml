@@ -2,8 +2,7 @@ name: CoopsIndia 7AM Cloud
 
 # Cloud-only: runs every 5 min; executes job only 7:00-7:04 AM IST (once daily window).
 on:
-  schedule:
-    - cron: "*/5 * * * *"
+  # schedule off
   workflow_dispatch:
   repository_dispatch:
     types: [coops-daily-run]
