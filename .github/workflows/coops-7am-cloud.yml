@@ -1,16 +1,15 @@
 name: CoopsIndia 7AM Cloud
 
-# Reliable 7:00 AM IST â€” checks every 15 min around 7 AM UTC window, runs once.
+# Cloud-only: runs every 5 min; executes job only 7:00-7:04 AM IST (once daily window).
 on:
   schedule:
-    - cron: "*/15 1-2 * * *"
-    - cron: "0 0 * * *"
+    - cron: "*/5 * * * *"
   workflow_dispatch:
   repository_dispatch:
     types: [coops-daily-run]
 
 concurrency:
-  group: coops-7am-daily
+  group: coops-7am-ist-${{ github.run_id }}
   cancel-in-progress: false
 
 permissions:
@@ -22,23 +21,20 @@ jobs:
     outputs:
       run_job: ${{ steps.check.outputs.run_job }}
     steps:
-      - name: Decide if 7 AM IST (or manual trigger)
+      - name: 7 AM IST gate
         id: check
         run: |
           if [ "${{ github.event_name }}" != "schedule" ]; then
             echo "run_job=true" >> "$GITHUB_OUTPUT"
-            echo "Manual/dispatch trigger â€” run now"
             exit 0
           fi
           H=$(TZ=Asia/Kolkata date +%H)
           M=$(TZ=Asia/Kolkata date +%M)
-          echo "IST now: $(TZ=Asia/Kolkata date) (H=$H M=$M)"
-          # 7:00â€“7:08 AM IST only (avoids duplicate 7:15 run)
-          if [ "$H" = "07" ] && [ "$M" -lt 9 ]; then
+          echo "IST: $(TZ=Asia/Kolkata date)"
+          if [ "$H" = "07" ] && [ "$M" -lt 5 ]; then
             echo "run_job=true" >> "$GITHUB_OUTPUT"
           else
             echo "run_job=false" >> "$GITHUB_OUTPUT"
-            echo "Not 7 AM window â€” skip"
           fi
 
   daily-report:
