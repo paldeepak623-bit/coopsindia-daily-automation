@@ -64,9 +64,36 @@ jobs:
           python3 -c "import json,os; json.dump({'login_id':os.environ['COOPS_LOGIN_ID'],'password':os.environ['COOPS_PASSWORD'],'report':{'use_yesterday_date':True,'keep_local_copy':False},'upload':{'google_drive':{'enabled':True,'folder_id':'1QSO9aBUym6ZdvwrkZGq7H-SCALhC34S5','rclone_remote':'gdrive'},'onedrive':{'enabled':False}}}, open('config.json','w'))"
           echo "$RCLONE_CONFIG_B64" | base64 -d > rclone.conf
       - name: Run daily job
+        id: job
         env:
           COOPS_AUTO: "1"
         run: python daily_job.py
+
+      - name: Report folder date
+        id: folder
+        if: always()
+        run: |
+          FOLDER=$(TZ=Asia/Kolkata date -d "yesterday" +%d-%m-%Y)
+          echo "name=$FOLDER" >> "$GITHUB_OUTPUT"
+          echo "time=$(TZ=Asia/Kolkata date '+%d-%m-%Y %H:%M IST')" >> "$GITHUB_OUTPUT"
+
+      - name: WhatsApp / SMS alert
+        if: always()
+        env:
+          NOTIFY_PHONE: ${{ secrets.NOTIFY_PHONE }}
+          CALLMEBOT_APIKEY: ${{ secrets.CALLMEBOT_APIKEY }}
+          TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+          TWILIO_FROM_NUMBER: ${{ secrets.TWILIO_FROM_NUMBER }}
+          REPORT_FOLDER: ${{ steps.folder.outputs.name }}
+          JOB_TIME_IST: ${{ steps.folder.outputs.time }}
+        run: |
+          if [ "${{ steps.job.outcome }}" = "success" ]; then
+            python notify.py success
+          else
+            python notify.py failure
+          fi
+
       - name: Upload logs
         if: always()
         uses: actions/upload-artifact@v4
