@@ -77,13 +77,18 @@ jobs:
           echo "name=$FOLDER" >> "$GITHUB_OUTPUT"
           echo "time=$(TZ=Asia/Kolkata date '+%d-%m-%Y %H:%M IST')" >> "$GITHUB_OUTPUT"
 
-      - name: WhatsApp / SMS alert
+      - name: WhatsApp / Email alert
         if: always()
         env:
           NOTIFY_PHONES: ${{ secrets.NOTIFY_PHONES }}
-          CALLMEBOT_APIKEYS: ${{ secrets.CALLMEBOT_APIKEYS }}
+          NOTIFY_EMAILS: ${{ secrets.NOTIFY_EMAILS }}
           CALLMEBOT_APIKEY: ${{ secrets.CALLMEBOT_APIKEY }}
-          NOTIFY_TARGETS: ${{ secrets.NOTIFY_TARGETS }}
+          CALLMEBOT_APIKEYS: ${{ secrets.CALLMEBOT_APIKEYS }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
           TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
           TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
           TWILIO_FROM_NUMBER: ${{ secrets.TWILIO_FROM_NUMBER }}
